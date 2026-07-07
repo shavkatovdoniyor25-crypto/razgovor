@@ -993,6 +993,30 @@
     if (recorder && recorder.stream) recorder.stream.getTracks().forEach(function (tr) { tr.stop(); });
   }
 
+  var MIME_CANDIDATES = [
+    'audio/mp4',
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/aac',
+    'audio/ogg;codecs=opus'
+  ];
+
+  function pickSupportedMimeType() {
+    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return '';
+    for (var i = 0; i < MIME_CANDIDATES.length; i++) {
+      if (MediaRecorder.isTypeSupported(MIME_CANDIDATES[i])) return MIME_CANDIDATES[i];
+    }
+    return '';
+  }
+
+  function extensionForMimeType(mimeType) {
+    if (!mimeType) return 'webm';
+    if (mimeType.indexOf('mp4') !== -1) return 'm4a';
+    if (mimeType.indexOf('aac') !== -1) return 'aac';
+    if (mimeType.indexOf('ogg') !== -1) return 'ogg';
+    return 'webm';
+  }
+
   function startRecording() {
     state.micError = null;
     state.recordWarning = '';
@@ -1004,12 +1028,14 @@
     }
     navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
       state.audioChunks = [];
-      var mr = new MediaRecorder(stream);
+      var preferredMimeType = pickSupportedMimeType();
+      var mr = preferredMimeType ? new MediaRecorder(stream, { mimeType: preferredMimeType }) : new MediaRecorder(stream);
+      var actualMimeType = mr.mimeType || preferredMimeType || 'audio/webm';
       state.mediaRecorder = mr;
       mr.ondataavailable = function (e) { if (e.data && e.data.size > 0) state.audioChunks.push(e.data); };
       mr.onstop = function () {
-        var blob = new Blob(state.audioChunks, { type: 'audio/webm' });
-        audioMemory[key] = { url: URL.createObjectURL(blob), blob: blob, seconds: state.seconds };
+        var blob = new Blob(state.audioChunks, { type: actualMimeType });
+        audioMemory[key] = { url: URL.createObjectURL(blob), blob: blob, seconds: state.seconds, mimeType: actualMimeType };
         stopStream(mr);
         state.recording = false;
         render();
@@ -1278,7 +1304,8 @@
       var key = activeKey();
       var mem = audioMemory[key];
       var blob = mem && mem.blob ? mem.blob : new Blob([], { type: 'audio/webm' });
-      var suggestedName = 'govori-svobodno-' + key.replace(/:/g, '-') + '.webm';
+      var ext = extensionForMimeType(mem && mem.mimeType);
+      var suggestedName = 'govori-svobodno-' + key.replace(/:/g, '-') + '.' + ext;
 
       if (HAS_FS_ACCESS) {
         window.showSaveFilePicker({ suggestedName: suggestedName }).then(function (handle) {
