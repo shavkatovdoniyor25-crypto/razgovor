@@ -798,16 +798,10 @@
 
     var seconds = mem ? mem.seconds : (task ? task.seconds : 0);
     var hasDeviceCopy = task && (task.savedWithHandle || task.savedFileName);
-    var bars = '';
-    for (var i = 0; i < 28; i++) {
-      var h = 6 + Math.round(Math.abs(Math.sin(i * 1.4)) * 20);
-      bars += '<span style="height:' + h + 'px;"></span>';
-    }
 
     var playControls;
     if (hasPlayableMem) {
-      playControls = '<button class="btn" id="play-btn" aria-label="Прослушать">' + ICONS.play + '</button>' +
-        '<div class="waveform">' + bars + '</div><span class="muted-sm">' + fmt(seconds) + '</span>';
+      playControls = '<audio id="audio-player" controls style="width:100%;" src="' + mem.url + '"></audio>';
     } else if (mem && mem.simulated) {
       playControls = '<div class="muted-sm" style="flex:1;">Запись длилась ' + fmt(seconds) + '. Микрофон недоступен в этом демо-режиме, поэтому воспроизвести её нельзя — на реальном сайте это будет работать.</div>';
     } else if (hasDeviceCopy) {
@@ -914,17 +908,25 @@
     if (!flipped) {
       return '<div class="phrase-card" data-card="' + c.id + '"><div class="phrase-card-text">' + c.text + '</div></div>';
     }
+
+    var escapedText = c.text ? c.text.replace(/"/g, '&quot;') : '';
+    var editRow = '<input class="phrase-input phrase-edit-input" type="text" data-card="' + c.id + '" value="' + escapedText + '"/>' +
+      '<div class="card-actions-row">' +
+      '<button class="btn" data-action="save-phrase" data-card="' + c.id + '">Сохранить фразу</button>' +
+      '<button class="btn" data-action="delete-card" data-card="' + c.id + '" style="border-color:#ff3b4e;color:#ff3b4e;">Удалить</button>' +
+      '</div>';
+
     if (c.box >= 7) {
       return '<div class="phrase-card flipped" data-card="' + c.id + '">' +
-        '<div class="muted-sm" style="margin-bottom:8px;">' + c.text + '</div>' +
-        '<div class="chip" style="margin-bottom:8px;">Выучено</div>' +
-        (c.sentence ? '<div style="font-size:13px;">' + c.sentence + '</div>' : '') +
-        '<button class="btn phrase-collapse-btn" data-card="' + c.id + '" style="margin-top:10px;width:100%;">Свернуть</button>' +
+        editRow +
+        '<div class="chip" style="margin:10px 0 8px;">Выучено</div>' +
+        (c.sentence ? '<div style="font-size:13px;margin-bottom:8px;">' + c.sentence + '</div>' : '') +
+        '<button class="btn phrase-collapse-btn" data-card="' + c.id + '" style="width:100%;">Свернуть</button>' +
         '</div>';
     }
     return '<div class="phrase-card flipped" data-card="' + c.id + '">' +
-      '<div class="muted-sm" style="margin-bottom:8px;">' + c.text + '</div>' +
-      '<textarea class="phrase-sentence-input" data-card="' + c.id + '" placeholder="Напишите предложение с этой фразой">' + (c.sentence || '') + '</textarea>' +
+      editRow +
+      '<textarea class="phrase-sentence-input" data-card="' + c.id + '" placeholder="Напишите предложение с этой фразой" style="margin-top:8px;">' + (c.sentence || '') + '</textarea>' +
       (state.cardMsg[c.id] ? '<div class="muted-sm" style="margin-top:6px;">' + state.cardMsg[c.id] + '</div>' : '') +
       '<button class="btn strong phrase-advance-btn" data-card="' + c.id + '" style="margin-top:8px;width:100%;">Дальше → Повтор №' + Math.min(c.box + 1, 7) + '</button>' +
       '<button class="btn phrase-collapse-btn" data-card="' + c.id + '" style="margin-top:8px;width:100%;">Свернуть</button>' +
@@ -1228,6 +1230,31 @@
       });
     });
 
+    app.querySelectorAll('[data-action="save-phrase"]').forEach(function (node) {
+      node.addEventListener('click', function () {
+        var id = node.getAttribute('data-card');
+        var input = app.querySelector('.phrase-edit-input[data-card="' + id + '"]');
+        if (!input) return;
+        var newText = input.value.trim();
+        if (!newText) return;
+        STORE.cards[id].text = newText;
+        saveStore();
+        render();
+      });
+    });
+
+    app.querySelectorAll('[data-action="delete-card"]').forEach(function (node) {
+      node.addEventListener('click', function () {
+        var id = node.getAttribute('data-card');
+        if (!confirm('Удалить эту карточку насовсем?')) return;
+        delete STORE.cards[id];
+        delete state.flippedCards[id];
+        delete state.cardMsg[id];
+        saveStore();
+        render();
+      });
+    });
+
     var backLevels = document.getElementById('back-levels');
     if (backLevels) backLevels.addEventListener('click', function () {
       clearInterval(state.timer);
@@ -1277,12 +1304,6 @@
         return;
       }
       stopRecording();
-    });
-
-    var playBtn = document.getElementById('play-btn');
-    if (playBtn) playBtn.addEventListener('click', function () {
-      var mem = audioMemory[activeKey()];
-      if (mem && mem.url) new Audio(mem.url).play();
     });
 
     var attachBtn = document.getElementById('attach-btn');

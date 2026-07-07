@@ -150,6 +150,9 @@ body {
 .phrase-card:hover { border-color: rgba(255,255,255,0.6); }
 .phrase-card.flipped { cursor: default; display: block; text-align: left; }
 .phrase-card-text { font-size: 15px; font-weight: 500; }
+.phrase-edit-input { font-weight: 500; margin-bottom: 8px; }
+.card-actions-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.card-actions-row .btn { flex: 1; }
 
 .phrase-sentence-input {
   width: 100%;
@@ -282,8 +285,6 @@ body {
 .rec-status { margin-top: 12px; font-size: 13px; }
 
 .result-panel { padding: 18px 0; }
-.waveform { flex: 1; height: 28px; display: flex; align-items: flex-end; gap: 2px; }
-.waveform span { display: inline-block; width: 3px; background: rgba(255,255,255,0.55); }
 .play-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .actions-row { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
 
