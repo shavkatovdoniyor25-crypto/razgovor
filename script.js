@@ -552,6 +552,7 @@
     phraseBox: 1,
     flippedCards: {},
     cardMsg: {},
+    editingCards: {},
     recordWarning: ''
   };
 
@@ -910,11 +911,18 @@
     }
 
     var escapedText = c.text ? c.text.replace(/"/g, '&quot;') : '';
-    var editRow = '<input class="phrase-input phrase-edit-input" type="text" data-card="' + c.id + '" value="' + escapedText + '"/>' +
-      '<div class="card-actions-row">' +
-      '<button class="btn" data-action="save-phrase" data-card="' + c.id + '">Сохранить фразу</button>' +
-      '<button class="btn" data-action="delete-card" data-card="' + c.id + '" style="border-color:#ff3b4e;color:#ff3b4e;">Удалить</button>' +
-      '</div>';
+    var isEditing = state.editingCards[c.id];
+    var editRow = isEditing
+      ? '<input class="phrase-input phrase-edit-input" type="text" data-card="' + c.id + '" value="' + escapedText + '"/>' +
+        '<div class="card-actions-row">' +
+        '<button class="btn strong" data-action="save-phrase" data-card="' + c.id + '">Сохранить</button>' +
+        '<button class="btn" data-action="cancel-edit" data-card="' + c.id + '">Отмена</button>' +
+        '</div>'
+      : '<div class="muted-sm" style="margin-bottom:8px;">' + c.text + '</div>' +
+        '<div class="card-actions-row">' +
+        '<button class="btn" data-action="edit-phrase" data-card="' + c.id + '">Редактировать</button>' +
+        '<button class="btn" data-action="delete-card" data-card="' + c.id + '" style="border-color:#ff3b4e;color:#ff3b4e;">Удалить</button>' +
+        '</div>';
 
     if (c.box >= 7) {
       return '<div class="phrase-card flipped" data-card="' + c.id + '">' +
@@ -1200,6 +1208,7 @@
         var id = node.getAttribute('data-card');
         delete state.flippedCards[id];
         delete state.cardMsg[id];
+        delete state.editingCards[id];
         render();
       });
     });
@@ -1230,6 +1239,22 @@
       });
     });
 
+    app.querySelectorAll('[data-action="edit-phrase"]').forEach(function (node) {
+      node.addEventListener('click', function () {
+        var id = node.getAttribute('data-card');
+        state.editingCards[id] = true;
+        render();
+      });
+    });
+
+    app.querySelectorAll('[data-action="cancel-edit"]').forEach(function (node) {
+      node.addEventListener('click', function () {
+        var id = node.getAttribute('data-card');
+        delete state.editingCards[id];
+        render();
+      });
+    });
+
     app.querySelectorAll('[data-action="save-phrase"]').forEach(function (node) {
       node.addEventListener('click', function () {
         var id = node.getAttribute('data-card');
@@ -1239,6 +1264,7 @@
         if (!newText) return;
         STORE.cards[id].text = newText;
         saveStore();
+        delete state.editingCards[id];
         render();
       });
     });
@@ -1305,6 +1331,22 @@
       }
       stopRecording();
     });
+
+    var audioPlayer = document.getElementById('audio-player');
+    if (audioPlayer) {
+      // WebKit/Chromium bug: MediaRecorder blobs sometimes report duration as
+      // Infinity, which breaks the scrub bar until the browser is forced to
+      // re-index the file by seeking past the end once.
+      audioPlayer.addEventListener('loadedmetadata', function fixDuration() {
+        if (audioPlayer.duration === Infinity || isNaN(audioPlayer.duration)) {
+          audioPlayer.currentTime = 1e101;
+          audioPlayer.addEventListener('timeupdate', function resetTime() {
+            audioPlayer.removeEventListener('timeupdate', resetTime);
+            audioPlayer.currentTime = 0;
+          }, { once: true });
+        }
+      }, { once: true });
+    }
 
     var attachBtn = document.getElementById('attach-btn');
     var attachInput = document.getElementById('attach-input');
