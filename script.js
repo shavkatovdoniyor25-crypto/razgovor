@@ -706,6 +706,18 @@
       '</div>';
   }
 
+  function levelTotalSeconds(tier, levelIdx) {
+    var lv = TIERS[tier].levels[levelIdx];
+    var total = 0;
+    for (var i = 0; i < lv.questions.length; i++) {
+      var t = getTask(tier + ':' + levelIdx + ':0:' + i);
+      if (t) total += t.seconds || 0;
+    }
+    var t2 = getTask(tier + ':' + levelIdx + ':1');
+    if (t2) total += t2.seconds || 0;
+    return total;
+  }
+
   function renderLevels() {
     var t = TIERS[state.tier];
     var unlocked = STORE.unlocked[state.tier];
@@ -713,7 +725,13 @@
       var locked = i > unlocked;
       var done = i < unlocked;
       var current = i === unlocked;
-      var cls = 'lvl-cell' + (locked ? ' locked' : '') + (done ? ' done' : '') + (current ? ' current' : '');
+      var timeCls = '';
+      if (done) {
+        var minutes = levelTotalSeconds(state.tier, i) / 60;
+        if (minutes > 9.5) timeCls = ' level-green';
+        else if (minutes >= 2.5) timeCls = ' level-yellow';
+      }
+      var cls = 'lvl-cell' + (locked ? ' locked' : '') + (done ? ' done' : '') + (current ? ' current' : '') + timeCls;
       return '<div class="' + cls + '" data-idx="' + i + '">' +
         '<div class="lvl-num">' + (locked ? ICONS.lock : (i + 1)) + '</div>' +
         '<div class="lvl-topic muted">' + lv.topic + '</div>' +
