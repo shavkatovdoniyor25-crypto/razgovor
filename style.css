@@ -225,6 +225,13 @@ body {
   line-height: 1.6;
 }
 
+.hint-box {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.15);
+}
+.hint-list { margin: 0; padding-left: 18px; font-size: 13px; color: rgba(255,255,255,0.6); line-height: 1.6; }
+
 .example-box {
   margin-top: 12px;
   padding-top: 12px;
