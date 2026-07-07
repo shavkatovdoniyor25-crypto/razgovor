@@ -414,8 +414,22 @@
   function loadAndEnterApp(uid) {
     state.view = 'loading';
     render();
-    db.collection('progress').doc(uid).get().then(function (doc) {
-      var data = doc.exists ? normalizeStore(doc.data()) : defaultStore();
+    Promise.all([
+      db.collection('progress').doc(uid).get(),
+      db.collection('profiles').doc(uid).get(),
+      db.collection('admins').doc(uid).get()
+    ]).then(function (results) {
+      var progressDoc = results[0], profileDoc = results[1], adminDoc = results[2];
+
+      if (profileDoc.exists && profileDoc.data().blocked) {
+        auth.signOut();
+        state.authError = 'Ваш аккаунт заблокирован администратором.';
+        state.view = 'auth';
+        render();
+        return;
+      }
+
+      var data = progressDoc.exists ? normalizeStore(progressDoc.data()) : defaultStore();
       var now = Date.now();
       if (data.lastLogin && (now - data.lastLogin) > THIRTY_DAYS_MS) {
         data = defaultStore();
@@ -423,6 +437,7 @@
       data.lastLogin = now;
       STORE = data;
       state.currentUser = uid;
+      state.isAdmin = adminDoc.exists;
       state.authError = '';
       saveStore();
       state.view = 'home';
@@ -522,6 +537,7 @@
     authMode: 'login',
     authError: '',
     currentUser: null,
+    isAdmin: false,
     tier: null,
     level: null,
     taskIdx: 0,
@@ -556,9 +572,15 @@
 
   function renderAuth() {
     var isLogin = state.authMode !== 'register';
+    var registerFields = isLogin ? '' :
+      '<input class="auth-input" type="text" id="auth-lastname" placeholder="Фамилия"/>' +
+      '<input class="auth-input" type="text" id="auth-firstname" placeholder="Имя"/>' +
+      '<input class="auth-input" type="text" id="auth-teacher" placeholder="Имя учителя"/>' +
+      '<input class="auth-input" type="number" id="auth-birthyear" placeholder="Год рождения"/>';
     return '<div class="auth-wrap">' +
       '<div class="edu-wordmark">ICON EDUCATION</div>' +
       '<div class="auth-title">' + (isLogin ? 'Вход' : 'Регистрация') + '</div>' +
+      registerFields +
       '<input class="auth-input" type="email" id="auth-email" placeholder="Электронная почта"/>' +
       '<input class="auth-input" type="password" id="auth-password" placeholder="Пароль"/>' +
       (isLogin ? '' : '<input class="auth-input" type="password" id="auth-password2" placeholder="Повторите пароль"/>') +
@@ -660,14 +682,20 @@
     return '<div class="rank-strip">' + icons + '</div>';
   }
 
+  function getUnlockedCount(tierKey) {
+    if (state.isAdmin) return TIERS[tierKey].levels.length - 1;
+    return STORE.unlocked[tierKey];
+  }
+
   function tierCard(key) {
     var t = TIERS[key];
-    var pct = Math.round((100 * STORE.unlocked[key]) / t.levels.length);
+    var unlockedCount = getUnlockedCount(key);
+    var pct = Math.round((100 * unlockedCount) / t.levels.length);
     return '<div class="tier-card" data-tier="' + key + '">' +
       '<div class="tier-name">' + t.name + '</div>' +
       '<div class="tier-count muted">' + t.levels.length + ' уровней</div>' +
       '<div class="bar"><div class="bar-fill" style="width:' + pct + '%;background:' + progressColor(pct) + ';"></div></div>' +
-      '<div class="tier-progress muted">' + STORE.unlocked[key] + ' / ' + t.levels.length + ' пройдено</div>' +
+      '<div class="tier-progress muted">' + unlockedCount + ' / ' + t.levels.length + ' пройдено</div>' +
       '</div>';
   }
 
@@ -675,12 +703,13 @@
     var cards = ['beginner', 'mid', 'advanced'].map(tierCard).join('');
     var stats = computeStats();
     var totalCards = Object.keys(STORE.cards).length;
-    var rank = getRank(stats.seconds);
+    var rankSeconds = state.isAdmin ? (RANKS[RANKS.length - 1].min * 60 + 1) : stats.seconds;
+    var rank = getRank(rankSeconds);
     return '<div class="top-row"><div class="edu-wordmark">ICON EDUCATION</div><button class="btn" id="logout-btn">Выйти</button></div>' +
       '<div class="stat-card">' +
       '<div class="rank-row">' +
       '<div class="rank-current">' + rankIcon(rank, 34, false) + '<div><div class="rank-name" style="color:' + rank.gradLight + ';">' + rank.name + '</div><div class="muted-sm">ваш ранг</div></div></div>' +
-      renderRankStrip(stats.seconds) +
+      renderRankStrip(rankSeconds) +
       '</div>' +
       '<div class="stat-big">' + fmtDuration(stats.seconds) + '</div>' +
       '<div class="stat-label muted">вы говорили по-русски</div>' +
@@ -720,7 +749,7 @@
 
   function renderLevels() {
     var t = TIERS[state.tier];
-    var unlocked = STORE.unlocked[state.tier];
+    var unlocked = getUnlockedCount(state.tier);
     var cells = t.levels.map(function (lv, i) {
       var locked = i > unlocked;
       var done = i < unlocked;
@@ -1049,11 +1078,37 @@
 
       if (state.authMode === 'register') {
         var pass2 = document.getElementById('auth-password2').value || '';
+        var lastName = (document.getElementById('auth-lastname').value || '').trim();
+        var firstName = (document.getElementById('auth-firstname').value || '').trim();
+        var teacherName = (document.getElementById('auth-teacher').value || '').trim();
+        var birthYearRaw = (document.getElementById('auth-birthyear').value || '').trim();
+        var birthYear = parseInt(birthYearRaw, 10);
+        var currentYear = new Date().getFullYear();
+
+        if (!lastName || !firstName) { state.authError = 'Впишите фамилию и имя.'; render(); return; }
+        if (!teacherName) { state.authError = 'Впишите имя учителя.'; render(); return; }
+        if (!birthYearRaw || isNaN(birthYear) || birthYear < 1950 || birthYear > currentYear) {
+          state.authError = 'Впишите корректный год рождения.'; render(); return;
+        }
         if (pass !== pass2) { state.authError = 'Пароли не совпадают.'; render(); return; }
+
         auth.createUserWithEmailAndPassword(email, pass).then(function (cred) {
           STORE = defaultStore();
-          return db.collection('progress').doc(cred.user.uid).set(STORE).then(function () {
+          var profile = {
+            email: email,
+            lastName: lastName,
+            firstName: firstName,
+            teacherName: teacherName,
+            birthYear: birthYear,
+            blocked: false,
+            createdAt: Date.now()
+          };
+          return Promise.all([
+            db.collection('progress').doc(cred.user.uid).set(STORE),
+            db.collection('profiles').doc(cred.user.uid).set(profile)
+          ]).then(function () {
             state.currentUser = cred.user.uid;
+            state.isAdmin = false;
             state.authError = '';
             state.view = 'home';
             render();

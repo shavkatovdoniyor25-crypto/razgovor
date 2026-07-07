@@ -318,3 +318,8 @@ body {
 .lesson-title { font-size: 20px; font-weight: 600; margin: 4px 0 12px; }
 
 svg.icon { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -4px; }
+
+.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-table th, .admin-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.12); white-space: nowrap; }
+.admin-table th { color: rgba(255,255,255,0.5); font-weight: 500; font-size: 12px; }
+.admin-table td:first-child, .admin-table th:first-child { white-space: normal; }

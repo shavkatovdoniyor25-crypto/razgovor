@@ -1,9 +1,32 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Каждый ученик может читать и писать только свой собственный документ прогресса.
+
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Список администраторов. Документы сюда добавляются вручную в консоли Firebase —
+    // ни один клиент не может сам себя сделать администратором.
+    match /admins/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    // Прогресс ученика (уровни, карточки фраз). Свой документ — всегда,
+    // администратор — любой (нужно для списка учеников и удаления/блокировки).
     match /progress/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null &&
+        (request.auth.uid == userId || isAdmin());
+    }
+
+    // Анкета ученика (фамилия, имя, учитель, год рождения, статус блокировки).
+    match /profiles/{userId} {
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow read, update: if request.auth != null &&
+        (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
     }
   }
 }
