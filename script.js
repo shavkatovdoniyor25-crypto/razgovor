@@ -50,7 +50,7 @@
       unlocked: 0
     },
     advanced: {
-      name: 'ICONIC',
+      name: 'Свободное общение',
       levels: [
         { topic: 'Дебаты: за и против', questions: ['Должны ли школьники носить форму? Обоснуйте.', 'Какой аргумент противоположной стороны самый сильный?', 'Как изменить чужое мнение, не переходя на личности?', 'Приведите пример, когда вы поменяли своё мнение в споре.'] },
         { topic: 'Новости и события', questions: ['Какая новость на этой неделе привлекла ваше внимание?', 'Как это событие может повлиять на обычных людей?', 'Доверяете ли вы источникам новостей? Почему?', 'Как вы отличаете факты от мнений в новостях?'] },
@@ -316,13 +316,102 @@
 
   /* ---------- home ---------- */
 
+  function progressColor(pct) {
+    if (pct >= 100) return '#2ecc40';
+    if (pct >= 81) return '#9be89d';
+    if (pct >= 50) return '#f0c93d';
+    if (pct >= 26) return '#f0a19c';
+    return '#e0433f';
+  }
+
+  var RANK_SHAPES = {
+    shield: { body: '<path d="M12 2l8 3.5v6c0 5.2-3.4 8.9-8 10.5-4.6-1.6-8-5.3-8-10.5v-6z"/>' },
+    chevron: { body: '<path d="M12 4l8 6-2 2-6-4.5-6 4.5-2-2z"/><path d="M12 12l8 6-2 2-6-4.5-6 4.5-2-2z"/>' },
+    star4: { body: '<polygon points="22,12 14.83,9.17 12,2 9.17,9.17 2,12 9.17,14.83 12,22 14.83,14.83"/>' },
+    star5: {
+      body: '<polygon points="12,2 14.7,9.3 22,9.9 16.3,14.6 18.2,22 12,17.8 5.8,22 7.7,14.6 2,9.9 9.3,9.3"/>'
+    },
+    crescent: {
+      body: '<path d="M20 12.5A8.5 8.5 0 1 1 11.5 4a6.5 6.5 0 0 0 8.5 8.5z"/>'
+    },
+    sunburstMedal: {
+      body: '<polygon points="22,12 16.6,10.1 19.07,4.93 13.9,7.4 12,2 10.1,7.4 4.93,4.93 7.4,10.1 2,12 7.4,13.9 4.93,19.07 10.1,16.6 12,22 13.9,16.6 19.07,19.07 16.6,13.9"/>',
+      extra: '<circle cx="12" cy="12" r="3.2" fill="rgba(0,0,0,0.28)"/>'
+    },
+    gemDiamond: {
+      body: '<polygon points="12,2 19,12 12,22 5,12"/>',
+      extra: '<line x1="12" y1="2" x2="12" y2="22" stroke="rgba(0,0,0,0.3)" stroke-width="1"/>'
+    },
+    droplet: { body: '<path d="M12 2c4 5 7 9 7 13a7 7 0 0 1-14 0c0-4 3-8 7-13z"/>' },
+    crystalHex: {
+      body: '<polygon points="12,1 17,6 17,15 12,23 7,15 7,6"/>',
+      extra: '<line x1="7" y1="6" x2="17" y2="6" stroke="rgba(0,0,0,0.25)" stroke-width="0.6"/><line x1="12" y1="1" x2="12" y2="23" stroke="rgba(0,0,0,0.2)" stroke-width="0.6"/>'
+    },
+    crownGems: {
+      body: '<path d="M3 9l4 3 5-8 5 8 4-3-2 11H5z"/>',
+      extra: '<circle cx="7.3" cy="17.5" r="1" fill="rgba(0,0,0,0.3)"/><circle cx="12" cy="18.3" r="1.2" fill="rgba(0,0,0,0.3)"/><circle cx="16.7" cy="17.5" r="1" fill="rgba(0,0,0,0.3)"/>'
+    }
+  };
+
+  var RANKS = [
+    { name: 'Бронза', min: 0, shape: 'shield', gradLight: '#ffb066', gradDark: '#b5601a' },
+    { name: 'Железо', min: 60, shape: 'chevron', gradLight: '#eef1f4', gradDark: '#9aa1ab' },
+    { name: 'Сталь', min: 120, shape: 'star4', gradLight: '#ffe27a', gradDark: '#c9971e' },
+    { name: 'Серебро', min: 180, shape: 'star5', gradLight: '#ffffff', gradDark: '#b9c4cf' },
+    { name: 'Золото', min: 240, shape: 'sunburstMedal', gradLight: '#ffe27a', gradDark: '#b8860b' },
+    { name: 'Платина', min: 360, shape: 'gemDiamond', gradLight: '#c9a6ff', gradDark: '#7b3fd4' },
+    { name: 'Алмаз', min: 480, shape: 'droplet', gradLight: '#7ec8ff', gradDark: '#1f6fb2' },
+    { name: 'Рубин', min: 600, shape: 'crystalHex', gradLight: '#baf0ff', gradDark: '#4fc3e8' },
+    { name: 'Сапфир', min: 900, shape: 'crescent', gradLight: '#caa6ff', gradDark: '#7b3fd4' },
+    { name: 'Бриллиант', min: 1200, shape: 'crownGems', gradLight: '#ffffff', gradDark: '#d9b8ff' }
+  ];
+
+  function getRank(totalSeconds) {
+    var minutes = Math.floor(totalSeconds / 60);
+    var rank = RANKS[0];
+    for (var i = 0; i < RANKS.length; i++) {
+      if (minutes >= RANKS[i].min) rank = RANKS[i];
+    }
+    return rank;
+  }
+
+  var gradCounter = 0;
+
+  function rankIcon(rank, size, locked) {
+    var shape = RANK_SHAPES[rank.shape];
+    if (locked) {
+      return '<svg viewBox="0 0 24 24" style="width:' + size + 'px;height:' + size + 'px;" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.2)" stroke-width="0.5">' + shape.body + '</svg>';
+    }
+    var gid = 'grad-' + (gradCounter++);
+    return '<svg viewBox="0 0 24 24" style="width:' + size + 'px;height:' + size + 'px;">' +
+      '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="1" y2="1">' +
+      '<stop offset="0%" stop-color="' + rank.gradLight + '"/>' +
+      '<stop offset="100%" stop-color="' + rank.gradDark + '"/>' +
+      '</linearGradient></defs>' +
+      '<g fill="url(#' + gid + ')" stroke="rgba(0,0,0,0.35)" stroke-width="0.5">' + shape.body + '</g>' +
+      (shape.extra || '') +
+      '</svg>';
+  }
+
+  function renderRankStrip(totalSeconds) {
+    var minutes = Math.floor(totalSeconds / 60);
+    var current = getRank(totalSeconds);
+    var icons = RANKS.map(function (r) {
+      var achieved = minutes >= r.min;
+      var isCurrent = r === current;
+      var cls = 'rank-icon-wrap' + (isCurrent ? ' current' : '');
+      return '<span class="' + cls + '" title="' + r.name + '">' + rankIcon(r, isCurrent ? 26 : 20, !achieved) + '</span>';
+    }).join('');
+    return '<div class="rank-strip">' + icons + '</div>';
+  }
+
   function tierCard(key) {
     var t = TIERS[key];
     var pct = Math.round((100 * STORE.unlocked[key]) / t.levels.length);
     return '<div class="tier-card" data-tier="' + key + '">' +
       '<div class="tier-name">' + t.name + '</div>' +
       '<div class="tier-count muted">' + t.levels.length + ' уровней</div>' +
-      '<div class="bar"><div class="bar-fill" style="width:' + pct + '%"></div></div>' +
+      '<div class="bar"><div class="bar-fill" style="width:' + pct + '%;background:' + progressColor(pct) + ';"></div></div>' +
       '<div class="tier-progress muted">' + STORE.unlocked[key] + ' / ' + t.levels.length + ' пройдено</div>' +
       '</div>';
   }
@@ -331,8 +420,13 @@
     var cards = ['beginner', 'mid', 'advanced'].map(tierCard).join('');
     var stats = computeStats();
     var totalCards = Object.keys(STORE.cards).length;
+    var rank = getRank(stats.seconds);
     return '<div class="top-row"><div class="edu-wordmark">ICON EDUCATION</div><button class="btn" id="logout-btn">Выйти</button></div>' +
       '<div class="stat-card">' +
+      '<div class="rank-row">' +
+      '<div class="rank-current">' + rankIcon(rank, 34, false) + '<div><div class="rank-name" style="color:' + rank.gradLight + ';">' + rank.name + '</div><div class="muted-sm">ваш ранг</div></div></div>' +
+      renderRankStrip(stats.seconds) +
+      '</div>' +
       '<div class="stat-big">' + fmtDuration(stats.seconds) + '</div>' +
       '<div class="stat-label muted">вы говорили по-русски</div>' +
       '<div class="stat-row muted-sm">Заданий выполнено: ' + stats.done + ' из ' + stats.total + ' · Записано фраз: ' + stats.phrases + '</div>' +
@@ -363,7 +457,8 @@
     var cells = t.levels.map(function (lv, i) {
       var locked = i > unlocked;
       var done = i < unlocked;
-      var cls = 'lvl-cell' + (locked ? ' locked' : '') + (done ? ' done' : '');
+      var current = i === unlocked;
+      var cls = 'lvl-cell' + (locked ? ' locked' : '') + (done ? ' done' : '') + (current ? ' current' : '');
       return '<div class="' + cls + '" data-idx="' + i + '">' +
         '<div class="lvl-num">' + (locked ? ICONS.lock : (i + 1)) + '</div>' +
         '<div class="lvl-topic muted">' + lv.topic + '</div>' +

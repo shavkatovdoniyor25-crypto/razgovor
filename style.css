@@ -8,10 +8,10 @@ body {
 }
 
 #app {
-  max-width: 720px;
+  width: 100%;
   margin: 0 auto;
   min-height: 100vh;
-  padding: 32px 20px 60px;
+  padding: 32px clamp(20px, 5vw, 100px) 60px;
 }
 
 .muted { color: rgba(255,255,255,0.55); }
@@ -43,8 +43,8 @@ body {
   margin: 60px auto 0;
   text-align: center;
 }
-.edu-wordmark { font-size: 19px; font-weight: 900; letter-spacing: 0.08em; }
-.auth-wordmark { font-size: 20px; font-weight: 900; letter-spacing: 0.08em; margin-bottom: 20px; }
+.edu-wordmark { font-size: 26px; font-weight: 900; letter-spacing: 0.08em; -webkit-text-stroke: 0.6px #fff; }
+.auth-wordmark { font-size: 28px; font-weight: 900; letter-spacing: 0.08em; margin-bottom: 20px; -webkit-text-stroke: 0.6px #fff; }
 .auth-title { font-size: 20px; font-weight: 600; margin-bottom: 20px; }
 .auth-input {
   display: block;
@@ -70,6 +70,21 @@ body {
 .stat-big { font-size: 26px; font-weight: 600; }
 .stat-label { font-size: 12px; margin-top: 4px; }
 .stat-row { margin-top: 10px; }
+.rank-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.rank-current { display: flex; align-items: center; gap: 12px; }
+.rank-name { font-size: 16px; font-weight: 700; }
+
+.rank-strip { display: flex; align-items: center; gap: 10px; }
+.rank-icon-wrap { display: flex; align-items: center; justify-content: center; opacity: 0.9; }
+.rank-icon-wrap svg { display: block; }
+.rank-icon-wrap.current { opacity: 1; filter: drop-shadow(0 0 4px rgba(255,255,255,0.5)); }
 
 .tiers {
   display: flex;
@@ -171,8 +186,9 @@ body {
   gap: 4px;
 }
 .lvl-cell:hover { border-color: rgba(255,255,255,0.7); }
-.lvl-cell.done { background: rgba(255,255,255,0.07); }
-.lvl-cell.locked { opacity: 0.35; cursor: not-allowed; }
+.lvl-cell.done { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.5); }
+.lvl-cell.current { border-color: #fff; box-shadow: 0 0 10px rgba(255,255,255,0.25); }
+.lvl-cell.locked { opacity: 0.18; border-color: rgba(255,255,255,0.08); cursor: not-allowed; }
 .lvl-num { font-size: 15px; font-weight: 600; }
 .lvl-topic { font-size: 10.5px; line-height: 1.25; }
 .lvl-dots { display: flex; gap: 4px; justify-content: center; margin-top: 2px; }
