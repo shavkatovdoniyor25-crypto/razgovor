@@ -5,6 +5,37 @@
   db.settings({ experimentalAutoDetectLongPolling: true });
 
   var ADMIN_QUOTA_KB = 200;
+  var TOTAL_TASKS = 250;
+
+  var RANK_NAMES = [
+    { min: 0, name: 'Бронза' },
+    { min: 60, name: 'Железо' },
+    { min: 120, name: 'Сталь' },
+    { min: 180, name: 'Серебро' },
+    { min: 240, name: 'Золото' },
+    { min: 360, name: 'Платина' },
+    { min: 480, name: 'Алмаз' },
+    { min: 600, name: 'Рубин' },
+    { min: 900, name: 'Сапфир' },
+    { min: 1200, name: 'Бриллиант' }
+  ];
+
+  function rankNameFor(totalSeconds) {
+    var minutes = Math.floor(totalSeconds / 60);
+    var name = RANK_NAMES[0].name;
+    for (var i = 0; i < RANK_NAMES.length; i++) {
+      if (minutes >= RANK_NAMES[i].min) name = RANK_NAMES[i].name;
+    }
+    return name;
+  }
+
+  function fmtDuration(totalSeconds) {
+    if (totalSeconds < 60) return totalSeconds + ' сек';
+    var h = Math.floor(totalSeconds / 3600);
+    var m = Math.round((totalSeconds % 3600) / 60);
+    if (h > 0) return h + ' ч ' + m + ' мин';
+    return m + ' мин';
+  }
 
   var state = {
     view: 'loading',
@@ -39,6 +70,10 @@
         '<td>' + fullName(u) + '<div class="muted-sm">' + (u.email || '') + '</div></td>' +
         '<td>' + (u.teacherName || '—') + '</td>' +
         '<td>' + (u.birthYear || '—') + '</td>' +
+        '<td>' + rankNameFor(u.totalSeconds) + '</td>' +
+        '<td>' + fmtDuration(u.totalSeconds) + '</td>' +
+        '<td>' + u.tasksCompleted + ' / ' + TOTAL_TASKS + '</td>' +
+        '<td>' + u.cardsCount + '</td>' +
         '<td' + (over ? ' style="color:#ff3b4e;"' : '') + '>' + loadKb + ' КБ / ' + ADMIN_QUOTA_KB + ' КБ</td>' +
         '<td>' + statusChip + '</td>' +
         '<td>' +
@@ -52,8 +87,8 @@
       '<div class="muted-sm" style="margin-bottom:16px;">Зарегистрировано учеников: ' + state.users.length + '</div>' +
       '<div style="overflow-x:auto;">' +
       '<table class="admin-table">' +
-      '<thead><tr><th>Ученик</th><th>Учитель</th><th>Год рождения</th><th>Нагрузка / норма</th><th>Статус</th><th>Действия</th></tr></thead>' +
-      '<tbody>' + (rows || '<tr><td colspan="6" class="muted-sm">Пока никто не зарегистрирован.</td></tr>') + '</tbody>' +
+      '<thead><tr><th>Ученик</th><th>Учитель</th><th>Год рождения</th><th>Ранг</th><th>Время речи</th><th>Заданий</th><th>Карточек</th><th>Нагрузка / норма</th><th>Статус</th><th>Действия</th></tr></thead>' +
+      '<tbody>' + (rows || '<tr><td colspan="10" class="muted-sm">Пока никто не зарегистрирован.</td></tr>') + '</tbody>' +
       '</table></div>';
   }
 
@@ -79,6 +114,19 @@
         var profile = doc.data();
         var progress = progressById[doc.id] || {};
         var loadKb = JSON.stringify(progress).length / 1024;
+
+        var tasks = progress.tasks || {};
+        var totalSeconds = 0;
+        var tasksCompleted = 0;
+        Object.keys(tasks).forEach(function (key) {
+          var t = tasks[key];
+          if (t && t.completed) {
+            tasksCompleted++;
+            totalSeconds += t.seconds || 0;
+          }
+        });
+        var cardsCount = Object.keys(progress.cards || {}).length;
+
         state.users.push({
           id: doc.id,
           email: profile.email,
@@ -87,7 +135,10 @@
           teacherName: profile.teacherName,
           birthYear: profile.birthYear,
           blocked: !!profile.blocked,
-          loadKb: loadKb
+          loadKb: loadKb,
+          totalSeconds: totalSeconds,
+          tasksCompleted: tasksCompleted,
+          cardsCount: cardsCount
         });
       });
       state.users.sort(function (a, b) { return fullName(a).localeCompare(fullName(b)); });
